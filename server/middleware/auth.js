@@ -27,6 +27,7 @@ function requireAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.uid;
+    console.log(`[auth] ${req.method} ${req.originalUrl} — resolved user_id=${payload.uid}`);
     next();
   } catch {
     return res.status(401).json({ error: "invalid_session" });
