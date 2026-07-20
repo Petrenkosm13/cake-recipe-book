@@ -2,6 +2,7 @@
   "name": "cake-recipe-book",
   "private": true,
   "version": "1.0.0",
+  "engines": { "node": ">=18" },
   "scripts": {
     "dev:client": "vite",
     "dev:server": "node server/server.js",
