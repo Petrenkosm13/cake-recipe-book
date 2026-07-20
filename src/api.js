@@ -20,6 +20,7 @@ export const api = {
   logout: () => request("POST", "/auth/logout"),
   me: () => request("GET", "/auth/me"),
   updateMe: (payload) => request("PATCH", "/auth/me", payload),
+  resendVerification: () => request("POST", "/auth/resend-verification"),
 
   categories: () => request("GET", "/categories"),
   createCategory: (payload) => request("POST", "/categories", payload),
