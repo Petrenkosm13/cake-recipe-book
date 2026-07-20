@@ -52,6 +52,7 @@ router.get("/", async (req, res) => {
       ingsRes.rows.forEach((i) => { (ingsByRecipe[i.recipe_id] ||= []).push(i); });
     }
     const recipes = recipesRes.rows.map((r) => shapeRecipe(r, catsByRecipe[r.id] || [], ingsByRecipe[r.id] || []));
+    console.log(`[data] GET /recipes — user_id=${req.userId} rows=${recipes.length}`);
     res.json({ recipes });
   } finally {
     client.release();
