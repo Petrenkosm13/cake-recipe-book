@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Search, Plus, ChefHat, ShoppingBasket } from "lucide-react";
+import { Search, Plus, ChefHat, ShoppingBasket, MailWarning } from "lucide-react";
 import { api } from "./api";
 import { UserMenu } from "./components/Auth";
 import { CategoryChips, CategoryManagerModal } from "./components/Categories";
@@ -9,9 +9,10 @@ import { RecipeFormModal } from "./components/RecipeFormModal";
 import { ProductGrid, ProductFormModal, PriceHistoryModal } from "./components/Product";
 import { EmptyState, ConfirmModal } from "./components/common";
 
-export default function CakeRecipeBook({ user, onUpdateUser, onLogout }) {
+export default function CakeRecipeBook({ user, onUpdateUser, onLogout, flash }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [resendState, setResendState] = useState("idle"); // idle | sending | sent | error
   const [recipes, setRecipes] = useState([]);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -114,6 +115,16 @@ export default function CakeRecipeBook({ user, onUpdateUser, onLogout }) {
     setConfirmDialog(null);
   };
 
+  const resendVerification = async () => {
+    setResendState("sending");
+    try {
+      await api.resendVerification();
+      setResendState("sent");
+    } catch {
+      setResendState("error");
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-[400px]"><div className="text-sm animate-pulse" style={{ color: "var(--ink-soft)" }}>Завантаження книги рецептів…</div></div>;
   }
@@ -131,6 +142,21 @@ export default function CakeRecipeBook({ user, onUpdateUser, onLogout }) {
           </div>
           <UserMenu user={user} onUpdate={onUpdateUser} onLogout={onLogout} />
         </div>
+
+        {flash && <div className={`auth-flash ${flash.type === "error" ? "auth-flash-error" : "auth-flash-success"}`} style={{ marginTop: 14 }}>{flash.text}</div>}
+
+        {!user.emailVerified && (
+          <div className="verify-banner">
+            <span className="flex items-center gap-2"><MailWarning size={16} /> Підтвердіть email, щоб убезпечити акаунт.</span>
+            {resendState === "sent" ? (
+              <span className="text-sm">Лист надіслано, перевірте пошту ✓</span>
+            ) : (
+              <button className="btn-ghost-sm" onClick={resendVerification} disabled={resendState === "sending"}>
+                {resendState === "sending" ? "Надсилаємо…" : resendState === "error" ? "Не вийшло, спробувати ще раз" : "Надіслати лист ще раз"}
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-1 mt-6 tab-row">
           <button className={`tab-btn ${tab === "recipes" ? "tab-btn-active" : ""}`} onClick={() => { setTab("recipes"); setQuery(""); }}>Рецепти</button>
