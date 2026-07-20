@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import { api } from "../api";
 import { CURRENCY_PRESETS } from "../context/CurrencyContext";
 
@@ -21,6 +21,7 @@ export function AuthScreen({ onAuthed, flash }) {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -63,7 +64,21 @@ export function AuthScreen({ onAuthed, flash }) {
           </label>
           <label className="field">
             <span>Пароль</span>
-            <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Мінімум 6 символів" />
+            <div className="password-field">
+              <input
+                type={showPassword ? "text" : "password"}
+                required minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Мінімум 6 символів"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck="false"
+              />
+              <button type="button" className="password-toggle" onClick={() => setShowPassword((s) => !s)} tabIndex={-1}>
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </label>
           {error && <div className="auth-error">{error}</div>}
           <button className="btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 6 }} disabled={busy} type="submit">
