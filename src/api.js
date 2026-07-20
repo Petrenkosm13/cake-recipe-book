@@ -21,6 +21,8 @@ export const api = {
   me: () => request("GET", "/auth/me"),
   updateMe: (payload) => request("PATCH", "/auth/me", payload),
   resendVerification: () => request("POST", "/auth/resend-verification"),
+  forgotPassword: (payload) => request("POST", "/auth/forgot-password", payload),
+  resetPassword: (payload) => request("POST", "/auth/reset-password", payload),
 
   categories: () => request("GET", "/categories"),
   createCategory: (payload) => request("POST", "/categories", payload),
