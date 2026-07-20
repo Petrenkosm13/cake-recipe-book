@@ -15,22 +15,127 @@ function GoogleGlyph() {
 }
 
 export function AuthScreen({ onAuthed, flash }) {
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState("login"); // login | signup | forgot
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     setBusy(true);
     try {
-      const payload = mode === "login" ? { email, password } : { email, password, displayName };
-      const { user } = mode === "login" ? await api.login(payload) : await api.signup(payload);
-      onAuthed(user);
+      if (mode === "forgot") {
+        await api.forgotPassword({ email });
+        setForgotSent(true);
+      } else {
+        const payload = mode === "login" ? { email, password } : { email, password, displayName };
+        const { user } = mode === "login" ? await api.login(payload) : await api.signup(payload);
+        onAuthed(user);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const switchMode = (next) => { setMode(next); setError(""); setForgotSent(false); };
+
+  return (
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-title">Кондитерська книга</div>
+        <div className="auth-sub">
+          {mode === "login" && "Увійдіть, щоб побачити свої рецепти"}
+          {mode === "signup" && "Створіть акаунт, щоб почати"}
+          {mode === "forgot" && "Відновлення пароля"}
+        </div>
+
+        {flash && <div className={`auth-flash ${flash.type === "error" ? "auth-flash-error" : "auth-flash-success"}`}>{flash.text}</div>}
+
+        {mode !== "forgot" && (
+          <>
+            <a href="/api/auth/google" className="btn-google mt-5">
+              <GoogleGlyph /> Увійти через Google
+            </a>
+            <div className="auth-divider"><span>або</span></div>
+          </>
+        )}
+
+        {mode === "forgot" && forgotSent ? (
+          <div className="auth-flash auth-flash-success" style={{ marginTop: 20 }}>
+            Якщо такий акаунт існує — на {email} надіслано лист із посиланням для скидання пароля. Перевірте пошту (і теку "Спам").
+          </div>
+        ) : (
+          <form onSubmit={submit} className="space-y-2">
+            {mode === "signup" && (
+              <label className="field">
+                <span>Ім'я (необов'язково)</span>
+                <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ваше ім'я" />
+              </label>
+            )}
+            <label className="field">
+              <span>Email</span>
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            </label>
+            {mode !== "forgot" && (
+              <label className="field">
+                <span>Пароль</span>
+                <div className="password-field">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Мінімум 6 символів"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck="false"
+                  />
+                  <button type="button" className="password-toggle" onClick={() => setShowPassword((s) => !s)} tabIndex={-1}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            )}
+            {mode === "login" && (
+              <button type="button" className="forgot-link" onClick={() => switchMode("forgot")}>Забули пароль?</button>
+            )}
+            {error && <div className="auth-error">{error}</div>}
+            <button className="btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 6 }} disabled={busy} type="submit">
+              {busy ? "Зачекайте…" : mode === "login" ? "Увійти" : mode === "signup" ? "Зареєструватися" : "Надіслати посилання"}
+            </button>
+          </form>
+        )}
+
+        <div className="auth-switch">
+          {mode === "login" && (<>Ще немає акаунта? <button type="button" onClick={() => switchMode("signup")}>Зареєструватися</button></>)}
+          {mode === "signup" && (<>Вже є акаунт? <button type="button" onClick={() => switchMode("login")}>Увійти</button></>)}
+          {mode === "forgot" && (<>Згадали пароль? <button type="button" onClick={() => switchMode("login")}>Увійти</button></>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ResetPasswordScreen({ token, onDone }) {
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      const { user } = await api.resetPassword({ token, password });
+      onDone(user);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,29 +146,11 @@ export function AuthScreen({ onAuthed, flash }) {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <div className="auth-title">Кондитерська книга</div>
-        <div className="auth-sub">{mode === "login" ? "Увійдіть, щоб побачити свої рецепти" : "Створіть акаунт, щоб почати"}</div>
-
-        {flash && <div className={`auth-flash ${flash.type === "error" ? "auth-flash-error" : "auth-flash-success"}`}>{flash.text}</div>}
-
-        <a href="/api/auth/google" className="btn-google mt-5">
-          <GoogleGlyph /> Увійти через Google
-        </a>
-        <div className="auth-divider"><span>або</span></div>
-
-        <form onSubmit={submit} className="space-y-2">
-          {mode === "signup" && (
-            <label className="field">
-              <span>Ім'я (необов'язково)</span>
-              <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ваше ім'я" />
-            </label>
-          )}
+        <div className="auth-title">Новий пароль</div>
+        <div className="auth-sub">Встановіть новий пароль для входу</div>
+        <form onSubmit={submit} className="space-y-2 mt-5">
           <label className="field">
-            <span>Email</span>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-          </label>
-          <label className="field">
-            <span>Пароль</span>
+            <span>Новий пароль</span>
             <div className="password-field">
               <input
                 type={showPassword ? "text" : "password"}
@@ -74,6 +161,7 @@ export function AuthScreen({ onAuthed, flash }) {
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck="false"
+                autoFocus
               />
               <button type="button" className="password-toggle" onClick={() => setShowPassword((s) => !s)} tabIndex={-1}>
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -82,16 +170,9 @@ export function AuthScreen({ onAuthed, flash }) {
           </label>
           {error && <div className="auth-error">{error}</div>}
           <button className="btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 6 }} disabled={busy} type="submit">
-            {busy ? "Зачекайте…" : mode === "login" ? "Увійти" : "Зареєструватися"}
+            {busy ? "Зберігаємо…" : "Зберегти новий пароль"}
           </button>
         </form>
-        <div className="auth-switch">
-          {mode === "login" ? (
-            <>Ще немає акаунта? <button type="button" onClick={() => { setMode("signup"); setError(""); }}>Зареєструватися</button></>
-          ) : (
-            <>Вже є акаунт? <button type="button" onClick={() => { setMode("login"); setError(""); }}>Увійти</button></>
-          )}
-        </div>
       </div>
     </div>
   );
