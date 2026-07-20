@@ -24,6 +24,7 @@ const historyShape = (r) => ({
 
 router.get("/", async (req, res) => {
   const result = await query("SELECT * FROM products WHERE user_id = $1 ORDER BY name ASC", [req.userId]);
+  console.log(`[data] GET /products — user_id=${req.userId} rows=${result.rows.length}`);
   res.json({ products: result.rows.map(shape) });
 });
 
