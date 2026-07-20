@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { api } from "./api";
-import { AuthScreen } from "./components/Auth";
+import { AuthScreen, ResetPasswordScreen } from "./components/Auth";
 import { CurrencyContext } from "./context/CurrencyContext";
 import CakeRecipeBook from "./CakeRecipeBook";
 
@@ -19,8 +19,16 @@ export default function App() {
   const [status, setStatus] = useState("loading"); // loading | guest | in
   const [user, setUser] = useState(null);
   const [flash, setFlash] = useState(null);
+  const [resetToken, setResetToken] = useState(null);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rt = params.get("reset_token");
+    if (rt) {
+      setResetToken(rt);
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
     const f = readFlashFromUrl();
     if (f) {
       setFlash(f);
@@ -42,6 +50,15 @@ export default function App() {
     const { user: updated } = await api.updateMe(patch);
     setUser(updated);
   };
+
+  if (resetToken) {
+    return (
+      <ResetPasswordScreen
+        token={resetToken}
+        onDone={(u) => { setUser(u); setStatus("in"); setResetToken(null); setFlash({ type: "success", text: "Пароль оновлено! Ви увійшли в акаунт." }); }}
+      />
+    );
+  }
 
   if (status === "loading") {
     return <div className="auth-shell"><div className="text-sm animate-pulse" style={{ color: "var(--ink-soft)" }}>Завантаження…</div></div>;
