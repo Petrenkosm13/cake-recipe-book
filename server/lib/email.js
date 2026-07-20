@@ -40,7 +40,49 @@ async function sendVerificationEmail(to, token) {
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     console.error("[email] Resend API error:", res.status, text);
+    console.warn("[email] Fallback — verification link:", verifyUrl);
   }
 }
 
-module.exports = { sendVerificationEmail };
+module.exports = { sendVerificationEmail, sendPasswordResetEmail };
+
+async function sendPasswordResetEmail(to, token) {
+  const resetUrl = `${APP_URL}/?reset_token=${encodeURIComponent(token)}`;
+
+  if (!RESEND_API_KEY) {
+    console.warn("[email] RESEND_API_KEY not set. Password reset link:", resetUrl);
+    return;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to: [to],
+      subject: "Скидання пароля — Кондитерська книга",
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #2E2420;">
+          <h2 style="color:#3F1C2B;">Скидання пароля</h2>
+          <p>Хтось (сподіваємось, ви) попросив скинути пароль до акаунту Кондитерської книги. Щоб встановити новий пароль, натисніть кнопку:</p>
+          <p>
+            <a href="${resetUrl}" style="display:inline-block;background:#6B2C43;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+              Встановити новий пароль
+            </a>
+          </p>
+          <p style="color:#7A6C61;font-size:12px;">Якщо кнопка не працює, перейдіть за посиланням: <br>${resetUrl}</p>
+          <p style="color:#7A6C61;font-size:12px;">Посилання дійсне 1 годину. Якщо це були не ви — просто проігноруйте цей лист.</p>
+        </div>
+      `,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("[email] Resend API error:", res.status, text);
+    console.warn("[email] Fallback — reset link:", resetUrl);
+  }
+}
