@@ -15,6 +15,13 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: "12mb" })); // base64 photos need a generous limit
 app.use(cookieParser());
 
+// API responses are per-user and change constantly — never let a browser or
+// intermediate mobile-network proxy cache them.
+app.use("/api", (req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  next();
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
@@ -22,6 +29,7 @@ app.use("/api/recipes", recipeRoutes);
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
+// Serve the built frontend (Vite output) in production.
 const clientDist = path.join(__dirname, "..", "dist");
 app.use(express.static(clientDist));
 app.get("*", (req, res, next) => {
@@ -29,6 +37,7 @@ app.get("*", (req, res, next) => {
   res.sendFile(path.join(clientDist, "index.html"));
 });
 
+// Generic error handler so a thrown/rejected route doesn't crash the process.
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: "server_error" });
