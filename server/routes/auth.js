@@ -49,6 +49,7 @@ router.post("/signup", async (req, res) => {
   );
   const user = result.rows[0];
   setAuthCookie(res, user.id);
+  console.log(`[auth] signup success: "${normalizedEmail}" (id ${user.id})`);
   sendVerificationEmail(user.email, token).catch((e) => console.error("[email] send failed:", e.message));
   res.json({ user: publicUser(user) });
 });
@@ -59,12 +60,20 @@ router.post("/login", async (req, res) => {
   const normalizedEmail = String(email).trim().toLowerCase();
   const result = await query("SELECT * FROM users WHERE email = $1", [normalizedEmail]);
   const user = result.rows[0];
-  if (!user) return res.status(401).json({ error: "Невірний email або пароль." });
+  if (!user) {
+    console.warn(`[auth] login failed — no account for email: "${normalizedEmail}"`);
+    return res.status(401).json({ error: "Невірний email або пароль." });
+  }
   if (!user.password_hash) {
+    console.warn(`[auth] login failed — account is Google-only: "${normalizedEmail}"`);
     return res.status(401).json({ error: "Цей акаунт зареєстрований через Google. Увійдіть кнопкою «Google» нижче." });
   }
   const ok = await bcrypt.compare(password, user.password_hash);
-  if (!ok) return res.status(401).json({ error: "Невірний email або пароль." });
+  if (!ok) {
+    console.warn(`[auth] login failed — password mismatch for: "${normalizedEmail}" (length received: ${password.length})`);
+    return res.status(401).json({ error: "Невірний email або пароль." });
+  }
+  console.log(`[auth] login success: "${normalizedEmail}"`);
   setAuthCookie(res, user.id);
   res.json({ user: publicUser(user) });
 });
