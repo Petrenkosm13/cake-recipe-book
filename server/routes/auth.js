@@ -3,11 +3,12 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const { query } = require("../db");
 const { requireAuth, setAuthCookie, clearAuthCookie } = require("../middleware/auth");
-const { sendVerificationEmail } = require("../lib/email");
+const { sendVerificationEmail, sendPasswordResetEmail } = require("../lib/email");
 const { buildGoogleAuthUrl, exchangeCodeForTokens, getGoogleUserInfo, randomState, isConfigured: googleConfigured } = require("../lib/google");
 
 const router = express.Router();
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const RESET_TTL_MS = 60 * 60 * 1000;
 
 function publicUser(row) {
   return {
@@ -134,6 +135,50 @@ router.post("/resend-verification", requireAuth, async (req, res) => {
     return res.status(500).json({ error: "Не вдалося надіслати лист. Спробуйте пізніше." });
   }
   res.json({ ok: true });
+});
+
+/* ---------------------------------- forgot / reset password ---------------------------------- */
+
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: "Вкажіть email." });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const result = await query("SELECT * FROM users WHERE email = $1", [normalizedEmail]);
+  const user = result.rows[0];
+
+  // Always respond the same way whether or not the account exists — avoids
+  // leaking which emails are registered.
+  if (user && user.password_hash) {
+    const token = crypto.randomBytes(24).toString("hex");
+    const expires = new Date(Date.now() + RESET_TTL_MS);
+    await query("UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3", [token, expires, user.id]);
+    sendPasswordResetEmail(user.email, token).catch((e) => console.error("[email] reset send failed:", e.message));
+    console.log(`[auth] password reset requested: "${normalizedEmail}"`);
+  } else {
+    console.warn(`[auth] password reset requested for unknown/google-only email: "${normalizedEmail}"`);
+  }
+  res.json({ ok: true });
+});
+
+router.post("/reset-password", async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password || password.length < 6) {
+    return res.status(400).json({ error: "Пароль має містити щонайменше 6 символів." });
+  }
+  const result = await query("SELECT * FROM users WHERE reset_token = $1", [token]);
+  const user = result.rows[0];
+  if (!user) return res.status(400).json({ error: "Посилання недійсне або вже використане." });
+  if (user.reset_token_expires && new Date(user.reset_token_expires) < new Date()) {
+    return res.status(400).json({ error: "Посилання застаріло. Запросіть скидання пароля ще раз." });
+  }
+  const hash = await bcrypt.hash(password, 10);
+  const updated = await query(
+    "UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2 RETURNING *",
+    [hash, user.id]
+  );
+  console.log(`[auth] password reset completed: "${user.email}"`);
+  setAuthCookie(res, user.id);
+  res.json({ user: publicUser(updated.rows[0]) });
 });
 
 /* ---------------------------------- Google OAuth ---------------------------------- */
