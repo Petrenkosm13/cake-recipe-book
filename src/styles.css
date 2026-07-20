@@ -204,6 +204,8 @@ body { background: var(--paper); font-family: 'Inter', sans-serif; color: var(--
 .password-field input { flex: 1; padding-right: 38px !important; }
 .password-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--ink-soft); padding: 4px; cursor: pointer; display: flex; }
 .password-toggle:hover { color: var(--plum); }
+.forgot-link { align-self: flex-end; background: none; border: none; color: var(--plum); font-size: 0.78rem; cursor: pointer; padding: 0; margin-top: -4px; }
+.forgot-link:hover { text-decoration: underline; }
 .btn-google:hover { background: var(--paper-alt); }
 .auth-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--ink-soft); font-size: 0.78rem; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
